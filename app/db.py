@@ -62,6 +62,12 @@ CREATE TABLE IF NOT EXISTS trade_exits (
     notes TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS price_cache (
+    ticker TEXT PRIMARY KEY,
+    price REAL NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS watchlist (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ticker TEXT NOT NULL UNIQUE,

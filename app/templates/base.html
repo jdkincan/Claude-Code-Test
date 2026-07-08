@@ -16,6 +16,7 @@
     <a href="/performance">Performance</a>
     <a href="/playbook">Playbook</a>
     <a href="/settings">Settings</a>
+    {% if auth_enabled() %}<a href="/logout" style="margin-left: auto;">Log out</a>{% endif %}
   </nav>
   <main>
     {% block content %}{% endblock %}

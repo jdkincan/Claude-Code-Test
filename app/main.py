@@ -1,16 +1,27 @@
-"""Personal brokerage options toolkit — local single-user web app."""
+"""Personal brokerage options toolkit — single-user web app.
+
+Optional password protection: set APP_PASSWORD to require login on every
+route (used for hosted deployments; local runs without it need no login).
+Set SECRET_KEY too in production so sessions survive restarts.
+"""
 from __future__ import annotations
 
+import csv
+import hmac
+import io
 import json
+import os
+import secrets
 import sqlite3
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import markdown as md
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 
 from app import calculators as calc
 from app import market_data, screener
@@ -20,6 +31,7 @@ BASE_DIR = Path(__file__).resolve().parent
 app = FastAPI(title="Options Toolkit")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
+templates.env.globals["auth_enabled"] = lambda: bool(os.environ.get("APP_PASSWORD"))
 templates.env.filters["money"] = lambda v: f"${v:,.0f}" if v is not None else "—"
 templates.env.filters["money2"] = lambda v: f"${v:,.2f}" if v is not None else "—"
 templates.env.filters["pct"] = lambda v: f"{v * 100:+.1f}%" if v is not None else "—"
@@ -42,6 +54,47 @@ def render(request: Request, template: str, **ctx) -> HTMLResponse:
     return templates.TemplateResponse(request, template, ctx)
 
 
+# --- Auth (active only when APP_PASSWORD is set) ------------------------------
+
+@app.middleware("http")
+async def require_auth(request: Request, call_next):
+    password = os.environ.get("APP_PASSWORD")
+    path = request.url.path
+    if password and path != "/login" and not path.startswith("/static"):
+        if not request.session.get("authed"):
+            return RedirectResponse("/login", status_code=303)
+    return await call_next(request)
+
+
+# Added after the auth middleware so it wraps it (outermost), making
+# request.session available inside require_auth.
+app.add_middleware(SessionMiddleware,
+                   secret_key=os.environ.get("SECRET_KEY") or secrets.token_hex(32),
+                   max_age=30 * 24 * 3600, same_site="lax")
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_form(request: Request):
+    return render(request, "login.html", error=None)
+
+
+@app.post("/login", response_class=HTMLResponse)
+def login(request: Request, password: str = Form(...)):
+    expected = os.environ.get("APP_PASSWORD", "")
+    if expected and hmac.compare_digest(password, expected):
+        request.session["authed"] = True
+        return RedirectResponse("/", status_code=303)
+    resp = render(request, "login.html", error="Wrong password.")
+    resp.status_code = 401
+    return resp
+
+
+@app.get("/logout")
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse("/login", status_code=303)
+
+
 # --- Dashboard ---------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
@@ -58,9 +111,36 @@ def dashboard(request: Request):
         upcoming = [t for t in open_trades
                     if t["time_exit_date"] <= today
                     or (t["catalyst_date"] and t["catalyst_date"] <= today)]
+        prices = {r["ticker"]: r for r in conn.execute("SELECT * FROM price_cache")}
         return render(request, "dashboard.html", settings=settings,
                       open_trades=open_trades, capital_at_risk=capital_at_risk,
-                      notional=notional, leverage=lev, upcoming=upcoming, today=today)
+                      notional=notional, leverage=lev, upcoming=upcoming, today=today,
+                      prices=prices)
+    finally:
+        conn.close()
+
+
+@app.post("/prices/refresh")
+def refresh_prices():
+    """Pull the latest underlying price for every open-trade ticker.
+
+    Fetch failures keep the previous cached value, so the page keeps working
+    offline with a stale-but-labeled price.
+    """
+    conn = db()
+    try:
+        tickers = [r["ticker"] for r in conn.execute(
+            "SELECT DISTINCT ticker FROM trades WHERE status = 'open'")]
+        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        for ticker in tickers:
+            price = market_data.last_price(ticker)
+            if price is not None:
+                conn.execute("""
+                    INSERT INTO price_cache (ticker, price, updated_at) VALUES (?,?,?)
+                    ON CONFLICT(ticker) DO UPDATE SET price=excluded.price,
+                        updated_at=excluded.updated_at""", (ticker, price, now))
+        conn.commit()
+        return RedirectResponse("/", status_code=303)
     finally:
         conn.close()
 
@@ -76,6 +156,31 @@ def journal(request: Request):
             FROM trades t LEFT JOIN trade_exits e ON e.trade_id = t.id
             ORDER BY t.entry_date DESC, t.id DESC""").fetchall()
         return render(request, "journal.html", trades=trades)
+    finally:
+        conn.close()
+
+
+@app.get("/journal.csv")
+def journal_csv():
+    conn = db()
+    try:
+        rows = conn.execute("""
+            SELECT t.id, t.ticker, t.structure, t.direction, t.pillar, t.entry_date,
+                   t.contracts, t.net_debit_credit, t.notional_exposure, t.max_loss,
+                   t.max_gain, t.profit_target, t.stop_rule, t.time_exit_date,
+                   t.catalyst_date, t.status, e.exit_date, e.proceeds, e.realized_pl,
+                   e.exit_reason, e.followed_plan, t.thesis
+            FROM trades t LEFT JOIN trade_exits e ON e.trade_id = t.id
+            ORDER BY t.entry_date, t.id""").fetchall()
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        if rows:
+            writer.writerow(rows[0].keys())
+            writer.writerows([tuple(r) for r in rows])
+        else:
+            writer.writerow(["no trades"])
+        return Response(buf.getvalue(), media_type="text/csv",
+                        headers={"Content-Disposition": "attachment; filename=journal.csv"})
     finally:
         conn.close()
 

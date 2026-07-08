@@ -36,15 +36,22 @@
 <div class="alert">⏰ Action needed: {{ upcoming | length }} position(s) at or past their time exit / catalyst date — see below.</div>
 {% endif %}
 
-<h2>Open positions</h2>
+<h2>Open positions
+  <form method="post" action="/prices/refresh" style="display: inline; margin-left: 0.6rem;">
+    <button type="submit" class="small secondary">↻ Refresh prices</button>
+  </form>
+</h2>
 <div class="card overflow">
   {% if open_trades %}
   <table>
-    <tr><th>Ticker</th><th>Structure</th><th>Pillar</th><th class="num">Contracts</th>
+    <tr><th>Ticker</th><th class="num">Underlying</th><th>Structure</th><th>Pillar</th><th class="num">Contracts</th>
         <th class="num">Max loss</th><th class="num">Target</th><th>Time exit</th><th>Catalyst</th><th></th></tr>
     {% for t in open_trades %}
     <tr {% if t.time_exit_date <= today or (t.catalyst_date and t.catalyst_date <= today) %}style="background: var(--warn-bg)"{% endif %}>
       <td><strong>{{ t.ticker }}</strong></td>
+      <td class="num">{% if prices.get(t.ticker) %}{{ prices[t.ticker].price | money2 }}
+        <span class="hint" title="{{ prices[t.ticker].updated_at }}">({{ prices[t.ticker].updated_at[:10] }})</span>
+        {% else %}—{% endif %}</td>
       <td>{{ t.structure }}</td>
       <td><span class="badge">{{ t.pillar }}</span></td>
       <td class="num">{{ t.contracts }}</td>
