@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Options Toolkit{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="tiles">
+  <div class="tile">
+    <div class="label">Account value</div>
+    <div class="value">{{ settings.account_value | money }}</div>
+    <div class="sub">{{ "%.1f" | format(settings.account_value / settings.total_investable_assets * 100) }}% of investable assets</div>
+  </div>
+  <div class="tile">
+    <div class="label">Capital at risk</div>
+    <div class="value">{{ capital_at_risk | money }}</div>
+    <div class="sub">sum of defined max losses</div>
+  </div>
+  <div class="tile">
+    <div class="label">Notional exposure</div>
+    <div class="value">{{ notional | money }}</div>
+    <div class="sub">{{ "%.2f" | format(leverage.leverage) }}x of account (cap 1x)</div>
+  </div>
+  <div class="tile">
+    <div class="label">Open positions</div>
+    <div class="value">{{ open_trades | length }}</div>
+    <div class="sub">max {{ settings.max_open_positions }}</div>
+  </div>
+</div>
+
+{% if not leverage.ok %}
+<div class="alert">⚠ {{ leverage.message }}. Reduce exposure before adding positions.</div>
+{% endif %}
+{% if open_trades | length > settings.max_open_positions %}
+<div class="alert">⚠ Open positions exceed your limit of {{ settings.max_open_positions }}.</div>
+{% endif %}
+{% if upcoming %}
+<div class="alert">⏰ Action needed: {{ upcoming | length }} position(s) at or past their time exit / catalyst date — see below.</div>
+{% endif %}
+
+<h2>Open positions</h2>
+<div class="card overflow">
+  {% if open_trades %}
+  <table>
+    <tr><th>Ticker</th><th>Structure</th><th>Pillar</th><th class="num">Contracts</th>
+        <th class="num">Max loss</th><th class="num">Target</th><th>Time exit</th><th>Catalyst</th><th></th></tr>
+    {% for t in open_trades %}
+    <tr {% if t.time_exit_date <= today or (t.catalyst_date and t.catalyst_date <= today) %}style="background: var(--warn-bg)"{% endif %}>
+      <td><strong>{{ t.ticker }}</strong></td>
+      <td>{{ t.structure }}</td>
+      <td><span class="badge">{{ t.pillar }}</span></td>
+      <td class="num">{{ t.contracts }}</td>
+      <td class="num neg">{{ t.max_loss | money }}</td>
+      <td class="num pos">{{ t.profit_target | money }}</td>
+      <td>{{ t.time_exit_date }}</td>
+      <td>{{ t.catalyst_date or "—" }}</td>
+      <td><a href="/trades/{{ t.id }}">view</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="hint">No open positions. <a href="/trades/new">Log a trade</a> or check the <a href="/screener">screener</a>.</p>
+  {% endif %}
+</div>
+{% endblock %}

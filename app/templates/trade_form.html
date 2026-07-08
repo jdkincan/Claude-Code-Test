@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}New Trade — Options Toolkit{% endblock %}
+{% block content %}
+<h1>Log a Trade</h1>
+<p class="hint">Per the playbook, every trade must have its risk and exits defined <em>before</em> entry.
+Fields marked <span class="req">*</span> are required.</p>
+
+<div class="card">
+  <form class="grid" method="post" action="/trades">
+    <div>
+      <label>Ticker <span class="req">*</span></label>
+      <input name="ticker" required value="{{ prefill.get('ticker', '') }}" id="ticker-input">
+      <span class="hint" id="price-hint"></span>
+    </div>
+    <div>
+      <label>Structure <span class="req">*</span></label>
+      <select name="structure" required>
+        {% for s in structures %}
+        <option value="{{ s }}" {% if prefill.get('structure', '').startswith(s) %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Direction <span class="req">*</span></label>
+      <select name="direction" required>
+        <option>bullish</option><option>bearish</option><option>neutral</option>
+      </select>
+    </div>
+    <div>
+      <label>Strategy pillar <span class="req">*</span></label>
+      <select name="pillar" required>
+        {% for p in pillars %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Entry date <span class="req">*</span></label>
+      <input name="entry_date" type="date" required value="{{ today }}">
+    </div>
+    <div>
+      <label>Net debit/credit, total $ (credit = negative) <span class="req">*</span></label>
+      <input name="net_debit_credit" type="number" step="0.01" required value="{{ prefill.get('net_debit_credit', '') }}">
+    </div>
+    <div>
+      <label>Contracts <span class="req">*</span></label>
+      <input name="contracts" type="number" min="1" required value="{{ prefill.get('contracts', '1') }}">
+    </div>
+    <div>
+      <label>Notional exposure $ <span class="req">*</span></label>
+      <input name="notional_exposure" type="number" step="0.01" required value="{{ prefill.get('notional_exposure', '') }}">
+      <span class="hint">underlying controlled; counts against 1x cap</span>
+    </div>
+    <div>
+      <label>Max loss $ <span class="req">*</span></label>
+      <input name="max_loss" type="number" step="0.01" min="0.01" required value="{{ prefill.get('max_loss', '') }}">
+    </div>
+    <div>
+      <label>Max gain $ (blank = uncapped)</label>
+      <input name="max_gain" type="number" step="0.01" value="{{ prefill.get('max_gain', '') }}">
+    </div>
+    <div>
+      <label>Profit target $ <span class="req">*</span></label>
+      <input name="profit_target" type="number" step="0.01" required value="{{ prefill.get('profit_target', '') }}">
+    </div>
+    <div>
+      <label>Time exit date <span class="req">*</span></label>
+      <input name="time_exit_date" type="date" required>
+    </div>
+    <div>
+      <label>Catalyst date (required for catalyst trades)</label>
+      <input name="catalyst_date" type="date">
+    </div>
+    <div class="full">
+      <label>Stop rule <span class="req">*</span></label>
+      <input name="stop_rule" required placeholder="e.g. close if position value falls below 50% of debit paid"
+             value="{{ prefill.get('stop_rule', '') }}">
+    </div>
+    <div class="full">
+      <label>Thesis</label>
+      <textarea name="thesis" placeholder="Why this trade, why now, what invalidates it"></textarea>
+    </div>
+    <div class="full actions">
+      <button type="submit">Log trade</button>
+      <a class="btn secondary" href="/journal">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

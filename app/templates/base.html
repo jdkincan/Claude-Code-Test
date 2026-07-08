@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Options Toolkit{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <nav>
+    <span class="brand">Options Toolkit</span>
+    <a href="/">Dashboard</a>
+    <a href="/journal">Journal</a>
+    <a href="/calculator">Calculator</a>
+    <a href="/screener">Screener</a>
+    <a href="/performance">Performance</a>
+    <a href="/playbook">Playbook</a>
+    <a href="/settings">Settings</a>
+  </nav>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

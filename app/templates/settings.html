@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Settings — Options Toolkit{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+{% if saved %}<div class="alert ok">Saved.</div>{% endif %}
+<div class="card">
+  <form class="grid" method="post" action="/settings">
+    <div>
+      <label>Account value ($) — this options sleeve</label>
+      <input name="account_value" type="number" step="0.01" min="1" required value="{{ settings.account_value }}">
+    </div>
+    <div>
+      <label>Total investable assets ($) — for sizing context</label>
+      <input name="total_investable_assets" type="number" step="0.01" min="1" required value="{{ settings.total_investable_assets }}">
+    </div>
+    <div>
+      <label>Per-trade risk (% of account)</label>
+      <input name="per_trade_risk_pct" type="number" step="0.1" min="0.1" max="100" required value="{{ settings.per_trade_risk_pct }}">
+    </div>
+    <div>
+      <label>Max open positions</label>
+      <input name="max_open_positions" type="number" min="1" required value="{{ settings.max_open_positions }}">
+    </div>
+    <div class="full actions"><button type="submit">Save</button></div>
+  </form>
+</div>
+<p class="hint">This account is {{ "%.1f" | format(settings.account_value / settings.total_investable_assets * 100) }}%
+of your investable assets — the playbook targets a small allocation. Leverage is capped at 1x notional in the dashboard check.</p>
+{% endblock %}

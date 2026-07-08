@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Performance — Options Toolkit{% endblock %}
+{% block content %}
+<h1>Performance</h1>
+
+{% if stats.n == 0 %}
+<p class="hint">No closed trades yet — statistics appear after your first exit.</p>
+{% else %}
+<div class="tiles">
+  <div class="tile"><div class="label">Closed trades</div><div class="value">{{ stats.n }}</div></div>
+  <div class="tile"><div class="label">Total P/L</div>
+    <div class="value {{ 'pos' if stats.total_pl > 0 else 'neg' }}">{{ stats.total_pl | money2 }}</div></div>
+  <div class="tile"><div class="label">Win rate</div>
+    <div class="value">{{ "%.0f%%" | format(stats.win_rate * 100) }}</div></div>
+  <div class="tile"><div class="label">Expectancy / trade</div>
+    <div class="value">{{ stats.expectancy | money2 if stats.expectancy is not none else "—" }}</div></div>
+</div>
+<div class="tiles">
+  <div class="tile"><div class="label">Avg win</div>
+    <div class="value pos">{{ stats.avg_win | money2 if stats.avg_win is not none else "—" }}</div></div>
+  <div class="tile"><div class="label">Avg loss</div>
+    <div class="value neg">{{ stats.avg_loss | money2 if stats.avg_loss is not none else "—" }}</div></div>
+  <div class="tile"><div class="label">Plan adherence</div>
+    <div class="value">{{ "%.0f%%" | format(stats.adherence * 100) }}</div>
+    <div class="sub">exits that followed the written plan</div></div>
+</div>
+
+<h2>P/L by strategy pillar</h2>
+<div class="card overflow">
+  <table>
+    <tr><th>Pillar</th><th class="num">Trades</th><th class="num">Total P/L</th></tr>
+    {% for pillar, d in by_pillar.items() %}
+    <tr>
+      <td><span class="badge">{{ pillar }}</span></td>
+      <td class="num">{{ d.n }}</td>
+      <td class="num {{ 'pos' if d.pl > 0 else 'neg' }}">{{ d.pl | money2 }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+{% endblock %}

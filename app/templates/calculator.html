@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Calculator — Options Toolkit{% endblock %}
+{% block content %}
+<h1>Position Sizing &amp; P/L Calculator</h1>
+<p class="hint">Premiums are per share, as quoted. Results are total dollars for the whole position.
+Sizing uses your settings: account {{ settings.account_value | money }}, {{ settings.per_trade_risk_pct }}% risk per trade.</p>
+
+<div class="card">
+  <form class="grid" method="post" action="/calculator" id="calc-form">
+    <div>
+      <label>Structure</label>
+      <select name="structure" id="structure-select">
+        {% for s in structures %}
+        <option value="{{ s }}" {% if form.get('structure') == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div><label>Spot price</label><input name="spot" type="number" step="0.01" required value="{{ form.get('spot', '') }}"></div>
+    <div><label>Contracts</label><input name="contracts" type="number" min="1" value="{{ form.get('contracts', '1') }}"></div>
+
+    <div data-for="long_call long_put cash_secured_put covered_call straddle">
+      <label>Strike</label><input name="strike" type="number" step="0.01" value="{{ form.get('strike', '') }}"></div>
+    <div data-for="long_call long_put cash_secured_put covered_call">
+      <label>Premium (per share)</label><input name="premium" type="number" step="0.01" value="{{ form.get('premium', '') }}"></div>
+
+    <div data-for="debit_vertical credit_vertical">
+      <label>Long strike</label><input name="long_strike" type="number" step="0.01" value="{{ form.get('long_strike', '') }}"></div>
+    <div data-for="debit_vertical credit_vertical">
+      <label>Short strike</label><input name="short_strike" type="number" step="0.01" value="{{ form.get('short_strike', '') }}"></div>
+    <div data-for="debit_vertical credit_vertical">
+      <label>Net debit/credit (per share)</label><input name="net_per_share" type="number" step="0.01" value="{{ form.get('net_per_share', '') }}"></div>
+    <div data-for="debit_vertical credit_vertical">
+      <label>Option type</label>
+      <select name="option_type">
+        <option value="call" {% if form.get('option_type') == 'call' %}selected{% endif %}>call</option>
+        <option value="put" {% if form.get('option_type') == 'put' %}selected{% endif %}>put</option>
+      </select></div>
+
+    <div data-for="strangle"><label>Put strike</label><input name="put_strike" type="number" step="0.01" value="{{ form.get('put_strike', '') }}"></div>
+    <div data-for="strangle"><label>Call strike</label><input name="call_strike" type="number" step="0.01" value="{{ form.get('call_strike', '') }}"></div>
+    <div data-for="straddle strangle"><label>Call premium</label><input name="call_premium" type="number" step="0.01" value="{{ form.get('call_premium', '') }}"></div>
+    <div data-for="straddle strangle"><label>Put premium</label><input name="put_premium" type="number" step="0.01" value="{{ form.get('put_premium', '') }}"></div>
+
+    <div class="full actions"><button type="submit">Calculate</button></div>
+  </form>
+</div>
+
+{% if error %}
+<div class="alert">⚠ {{ error }}</div>
+{% endif %}
+
+{% if result %}
+<h2>Result — {{ result.structure }} × {{ result.contracts }}</h2>
+<div class="tiles">
+  <div class="tile"><div class="label">Net {{ "credit" if result.net_debit < 0 else "debit" }}</div>
+    <div class="value">{{ (result.net_debit if result.net_debit >= 0 else -result.net_debit) | money2 }}</div></div>
+  <div class="tile"><div class="label">Max loss</div><div class="value neg">{{ result.max_loss | money2 }}</div></div>
+  <div class="tile"><div class="label">Max gain</div>
+    <div class="value pos">{{ result.max_gain | money2 if result.max_gain is not none else "uncapped" }}</div></div>
+  <div class="tile"><div class="label">Risk / reward</div>
+    <div class="value">{{ "1 : %.2f" | format(result.risk_reward) if result.risk_reward is not none else "—" }}</div></div>
+</div>
+<div class="tiles">
+  <div class="tile"><div class="label">Breakeven(s)</div>
+    <div class="value">{{ result.breakevens | map("round", 2) | join(" / ") }}</div></div>
+  <div class="tile"><div class="label">Suggested size</div>
+    <div class="value">{{ suggestion }} contract{{ "s" if suggestion != 1 }}</div>
+    <div class="sub">keeps worst case ≤ {{ settings.per_trade_risk_pct }}% of account</div></div>
+  <div class="tile"><div class="label">Notional exposure</div>
+    <div class="value">{{ result.notional_exposure | money }}</div>
+    <div class="sub {{ '' if leverage.ok else 'neg' }}">{{ leverage.message }}</div></div>
+</div>
+
+<h2>Payoff at expiry</h2>
+<div class="card">
+  <div class="chart-wrap" id="payoff-chart" data-curve='{{ curve_json }}'></div>
+  <p class="hint">P/L across ±40% of spot. Hover for exact values. Blue = profit region, red = loss region.</p>
+</div>
+
+<div class="actions">
+  <a class="btn" href="/trades/new?structure={{ result.structure }}&contracts={{ result.contracts }}&net_debit_credit={{ '%.2f' | format(result.net_debit) }}&max_loss={{ '%.2f' | format(result.max_loss) }}{% if result.max_gain is not none %}&max_gain={{ '%.2f' | format(result.max_gain) }}{% endif %}&notional_exposure={{ '%.2f' | format(result.notional_exposure) }}">
+    Send to journal →</a>
+</div>
+{% endif %}
+{% endblock %}

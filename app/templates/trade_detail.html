@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ trade.ticker }} trade — Options Toolkit{% endblock %}
+{% block content %}
+<h1>{{ trade.ticker }} — {{ trade.structure }} <span class="badge">{{ trade.pillar }}</span>
+  <span class="badge">{{ trade.status }}</span></h1>
+
+<div class="tiles">
+  <div class="tile"><div class="label">Net debit/credit</div><div class="value">{{ trade.net_debit_credit | money2 }}</div></div>
+  <div class="tile"><div class="label">Max loss (plan)</div><div class="value neg">{{ trade.max_loss | money }}</div></div>
+  <div class="tile"><div class="label">Profit target (plan)</div><div class="value pos">{{ trade.profit_target | money }}</div></div>
+  <div class="tile"><div class="label">Max gain</div><div class="value">{{ trade.max_gain | money if trade.max_gain is not none else "uncapped" }}</div></div>
+</div>
+
+<div class="card">
+  <table>
+    <tr><th>Direction</th><td>{{ trade.direction }}</td><th>Contracts</th><td>{{ trade.contracts }}</td></tr>
+    <tr><th>Entry date</th><td>{{ trade.entry_date }}</td><th>Notional</th><td>{{ trade.notional_exposure | money }}</td></tr>
+    <tr><th>Time exit</th><td>{{ trade.time_exit_date }}</td><th>Catalyst date</th><td>{{ trade.catalyst_date or "—" }}</td></tr>
+    <tr><th>Stop rule</th><td colspan="3">{{ trade.stop_rule }}</td></tr>
+    <tr><th>Thesis</th><td colspan="3">{{ trade.thesis or "—" }}</td></tr>
+  </table>
+</div>
+
+{% if exit %}
+<h2>Exit</h2>
+<div class="card">
+  <table>
+    <tr><th>Date</th><td>{{ exit.exit_date }}</td><th>Reason</th><td>{{ exit.exit_reason }}</td></tr>
+    <tr><th>Proceeds</th><td>{{ exit.proceeds | money2 }}</td>
+        <th>Realized P/L</th><td class="{{ 'pos' if exit.realized_pl > 0 else 'neg' }}">{{ exit.realized_pl | money2 }}</td></tr>
+    <tr><th>Followed plan</th><td>{{ "yes" if exit.followed_plan else "no" }}</td><th>Notes</th><td>{{ exit.notes or "—" }}</td></tr>
+  </table>
+</div>
+{% elif trade.status == 'open' %}
+<h2>Close position</h2>
+<div class="card">
+  <form class="grid" method="post" action="/trades/{{ trade.id }}/close">
+    <div><label>Exit date</label><input name="exit_date" type="date" required value="{{ today }}"></div>
+    <div><label>Proceeds, total $ (paid to close = negative)</label>
+      <input name="proceeds" type="number" step="0.01" required></div>
+    <div>
+      <label>Exit reason</label>
+      <select name="exit_reason" required>
+        {% for r in exit_reasons %}<option value="{{ r }}">{{ r }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Followed the plan?</label>
+      <select name="followed_plan"><option value="1">yes</option><option value="0">no</option></select>
+    </div>
+    <div class="full"><label>Notes</label><textarea name="notes"></textarea></div>
+    <div class="full actions"><button type="submit">Close trade</button></div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}
