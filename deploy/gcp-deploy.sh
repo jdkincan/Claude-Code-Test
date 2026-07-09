@@ -2,17 +2,39 @@
 # Deploy the Options Toolkit to a GCP free-tier e2-micro VM.
 #
 # Run from GCP Cloud Shell, in the repo root:
-#   DOMAIN=myname-options.duckdns.org \
-#   DUCKDNS_TOKEN=xxxxxxxx-xxxx-xxxx \
-#   APP_PASSWORD='choose-a-strong-password' \
 #   bash deploy/gcp-deploy.sh
+# and answer the three prompts (DuckDNS domain, DuckDNS token, app password).
+#
+# Non-interactive alternative — set the values as env vars instead:
+#   DOMAIN=... DUCKDNS_TOKEN=... APP_PASSWORD=... bash deploy/gcp-deploy.sh
 #
 # Optional: ZONE (default us-central1-a — free-tier eligible), VM_NAME.
 set -euo pipefail
 
-: "${DOMAIN:?set DOMAIN to your DuckDNS hostname, e.g. myname-options.duckdns.org}"
-: "${DUCKDNS_TOKEN:?set DUCKDNS_TOKEN from https://www.duckdns.org}"
-: "${APP_PASSWORD:?set APP_PASSWORD to the login password you want}"
+trim() { printf '%s' "$1" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//'; }
+
+if [ -z "${DOMAIN:-}" ]; then
+  read -rp "DuckDNS domain (e.g. yourname-options or yourname-options.duckdns.org): " DOMAIN
+fi
+DOMAIN=$(trim "$DOMAIN")
+[ -n "$DOMAIN" ] || { echo "DuckDNS domain is required."; exit 1; }
+case "$DOMAIN" in *.*) ;; *) DOMAIN="$DOMAIN.duckdns.org" ;; esac
+
+if [ -z "${DUCKDNS_TOKEN:-}" ]; then
+  read -rp "DuckDNS token (shown at the top of duckdns.org): " DUCKDNS_TOKEN
+fi
+DUCKDNS_TOKEN=$(trim "$DUCKDNS_TOKEN")
+[ -n "$DUCKDNS_TOKEN" ] || { echo "DuckDNS token is required."; exit 1; }
+
+while [ -z "${APP_PASSWORD:-}" ]; do
+  read -rsp "Choose the app login password: " pw1; echo
+  read -rsp "Type it again: " pw2; echo
+  if [ -z "$pw1" ]; then echo "Password can't be empty — try again."
+  elif [ "$pw1" != "$pw2" ]; then echo "Passwords didn't match — try again."
+  else APP_PASSWORD="$pw1"
+  fi
+done
+
 ZONE="${ZONE:-us-central1-a}"
 VM_NAME="${VM_NAME:-options-toolkit}"
 

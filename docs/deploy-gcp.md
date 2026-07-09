@@ -24,21 +24,23 @@ backs up the database with 14-day rotation.
 1. Open <https://console.cloud.google.com> → click the **Cloud Shell** icon
    (`>_`, top right). Make sure a project is selected (`gcloud config
    set project YOUR_PROJECT_ID` if not).
-2. Clone the repo and run the deploy script:
+2. Clone the repo and run the deploy script — each line is a separate
+   command (mobile-friendly; the script prompts for your DuckDNS domain,
+   token, and app password one at a time):
 
    ```bash
    git clone https://github.com/jdkincan/Claude-Code-Test.git
    cd Claude-Code-Test
    git checkout claude/personal-brokerage-options-l5x5so
-
-   DOMAIN=yourname-options.duckdns.org \
-   DUCKDNS_TOKEN=your-duckdns-token \
-   APP_PASSWORD='choose-a-strong-password' \
    bash deploy/gcp-deploy.sh
    ```
 
    (Cloning a private repo in Cloud Shell: use a GitHub personal access
    token when prompted, or `gh auth login`.)
+
+   Non-interactive alternative: pass the values as env vars instead of
+   answering prompts —
+   `DOMAIN=... DUCKDNS_TOKEN=... APP_PASSWORD=... bash deploy/gcp-deploy.sh`.
 
 3. Wait ~1 minute after the script finishes for Caddy to obtain the
    certificate, then open **`https://yourname-options.duckdns.org`** and log
